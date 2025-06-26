@@ -1,0 +1,66 @@
+---
+title: "Billboard Graphic"
+execute:
+  echo: false
+---
+
+
+```{r}
+# Load libraries
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(tidyr)
+  library(lubridate)
+})
+
+# Load data
+data("billboard", package = "tidyr")
+
+# Tidy data: pivot weeks into long format
+billboard_long <- billboard %>%
+  pivot_longer(
+    cols = starts_with("wk"),
+    names_to = "week",
+    names_prefix = "wk",
+    values_to = "rank",
+    values_drop_na = TRUE
+  ) %>%
+  mutate(week = as.integer(week))
+
+# Convert week number to actual date and extract month
+billboard_long <- billboard_long %>%
+  mutate(chart_date = as.Date("2000-01-01") + weeks(week - 1),
+         month = month(chart_date, label = TRUE, abbr = FALSE))
+
+# Filter only top 10 chart ranks
+billboard_top10 <- billboard_long %>%
+  filter(rank <= 10)
+
+# Find top 5 tracks with most weeks in Top 10
+top_tracks <- billboard_top10 %>%
+  count(artist, track, sort = TRUE) %>%
+  slice_max(n, n = 5)
+
+# Filter for top 5 tracks
+top5_data <- billboard_top10 %>%
+  semi_join(top_tracks, by = c("artist", "track"))
+
+# Plot: Top 10 ranks only, Rank 1 at top
+ggplot(top5_data, aes(x = month, y = rank, color = track)) +
+  geom_jitter(width = 0.2, height = 0.4, size = 3, alpha = 0.8) +
+  scale_y_reverse(breaks = 1:10) +  # Show only ranks 1 to 10, reversed (Rank 1 at top)
+  labs(
+    title = "Top 5 Tracks with the Most Weeks in Billboard Top 10 (2000)",
+    subtitle = "Chart position over months (Rank 1 is highest)",
+    x = "Month",
+    y = "Chart Rank (Top 10)",
+    color = "Track",
+    caption = "Source: Billboard dataset from tidyr package"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    legend.position = "bottom",
+    plot.caption = element_text(hjust = 0, face = "italic", size = 10)
+  )
+```
